@@ -28,8 +28,10 @@ jobs:
           submodules: recursive
 
       - name: Compile Windows Binaries
+        # Changed to cmd shell to perfectly parse space-separated cmake flags
+        shell: cmd
         run: |
-          cmake -B build_v5U ${{env.GENERAL_FLAGS}} -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_PATH/scripts/buildsystems/vcpkg.cmake" ${{env.WIN64_FLAGS}} ${{env.V5U_FLAGS}}
+          cmake -B build_v5U ${{env.GENERAL_FLAGS}} -DCMAKE_TOOLCHAIN_FILE="%VCPKG_INSTALLATION_PATH%/scripts/buildsystems/vcpkg.cmake" ${{env.WIN64_FLAGS}} ${{env.V5U_FLAGS}}
           cmake --build build_v5U --parallel --config Release
 
       - name: Gather Flat Root Outputs
