@@ -30,7 +30,7 @@ jobs:
       - name: Compile Windows Binaries
         shell: pwsh
         run: |
-          cmake -B build_v5U ${{env.GENERAL_FLAGS}} -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_PATH/scripts/buildsystems/vcpkg.cmake" ${{env.WIN64_FLAGS}} ${{env.V5U_FLAGS}}
+          cmake -B build_v5U ${{env.GENERAL_FLAGS}} -DCMAKE_TOOLCHAIN_FILE="C:/vckpg/scripts/buildsystems/vcpkg.cmake" ${{env.WIN64_FLAGS}} ${{env.V5U_FLAGS}}
           cmake --build build_v5U --parallel --config Release
 
       - name: Gather Flat Root Outputs
@@ -45,53 +45,3 @@ jobs:
           name: mania-windows-x64
           path: artifacts
 
-  # ----------------------------------------------------
-  # JOB 2: Native Android Engine & Game APK Compilation
-  # ----------------------------------------------------
-  build-android:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Root Engine Codebase
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
-
-      - name: Fetch Your Custom Game Files
-        uses: actions/checkout@v4
-        with:
-          repository: "fahamrehman247/Sonic-Mania-Decompilation"
-          path: "SonicMania-Custom"
-
-      # FIXED: Added correct directory path to solve the permission crash
-      - name: Make gradlew executable
-        working-directory: ./dependencies/RSDKv5/android
-        run: chmod +x ./gradlew
-
-      - name: Set Up Java Environment (JDK 17)
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'zulu'
-          java-version: '17'
-
-      - name: Configure Android SDK & Native NDK
-        uses: android-actions/setup-android@v3
-
-      # FIXED: Patched path structure to align with the RSDKv5 subdirectory layout
-      - name: Inject Custom Files into JNI Directory
-        run: |
-          mkdir -p dependencies/RSDKv5/android/app/jni
-          cp -r SonicMania-Custom/* dependencies/RSDKv5/android/app/jni/Game || true
-
-      # FIXED: working-directory, relative extraction path, and Plus config explicitly OFF
-      - name: Execute Android Compiler Pipeline (v5U)
-        working-directory: ./dependencies/RSDKv5/android
-        run: |
-          ./gradlew assembleRelease --no-daemon -PABIFILTERS="armeabi-v7a;arm64-v8a" -PRETRO_REVISION=3 -PRETRO_DISABLE_PLUS=OFF
-          mkdir -p ../../../final_apk
-          cp app/build/outputs/apk/release/*.apk ../../../final_apk/Sonic_Mania_v5U_Android.apk || cp app/build/outputs/apk/*/release/*.apk ../../../final_apk/Sonic_Mania_v5U_Android.apk || true
-
-      - name: Upload Android APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: mania-android-apk
-          path: final_apk
