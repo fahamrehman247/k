@@ -1,4 +1,4 @@
-name: Build Mania
+name: Build Sonic Mania (PC & Mobile)
 
 on:
   push:
@@ -12,132 +12,93 @@ on:
 
 env:
   GENERAL_FLAGS: "-DWITH_RSDK=ON -DCMAKE_BUILD_TYPE=Release"
-  V5_FLAGS: "-DRETRO_REVISION=2"
   V5U_FLAGS: "-DRETRO_REVISION=3 -DRETRO_DISABLE_PLUS=OFF"
-  WIN64_FLAGS: "-DVCPKG_TARGET_TRIPLET=x64-windows-static"
 
 jobs:
-  mania-windows-x64:
+  # ----------------------------------------------------
+  # JOB 1: Windows 64-bit Engine & Game DLL Compilation
+  # ----------------------------------------------------
+  build-pc-x64:
     runs-on: windows-latest
     steps:
-      - name: Checkout
+      - name: Checkout Source Code
         uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - name: Build Mania Win64 (v5U)
+      - name: Compile Windows Binaries
         run: |
-          cmake -B build_v5U ${{env.GENERAL_FLAGS}} -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_PATH/scripts/buildsystems/vcpkg.cmake" ${{env.WIN64_FLAGS}} ${{env.V5U_FLAGS}}
+          cmake -B build_v5U ${{env.GENERAL_FLAGS}} -A x64 ${{env.V5U_FLAGS}}
           cmake --build build_v5U --parallel --config Release
 
-      - name: Move artifacts
+      - name: Gather Flat Root Outputs
         run: |
           New-Item -ItemType Directory -Force -Path artifacts
           Copy-Item ./build_v5U/Release/*.dll artifacts/
           Copy-Item ./build_v5U/Release/*.exe artifacts/
 
-      - name: Upload artifacts Windows
+      - name: Upload Windows Bundle
         uses: actions/upload-artifact@v4
         with:
           name: mania-windows-x64
           path: artifacts
 
-  v5-android:
+  # ----------------------------------------------------
+  # JOB 2: Native Android Engine & Game APK Compilation
+  # ----------------------------------------------------
+  build-android:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout RSDKv5
+      - name: Checkout Root Engine Codebase
         uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - name: Checkout YOUR Custom Sonic Mania
+      - name: Inject Custom Game Files From Your Repository
         uses: actions/checkout@v4
         with:
           repository: "fahamrehman247/Sonic-Mania-Decompilation"
-          path: "Sonic-Mania-Decompilation"
+          path: "dependencies/android/app/jni/Game"
 
-      - name: Checkout Example-Mods
-        uses: actions/checkout@v4
+      - name: Set Up Java Environment (JDK 17)
+        uses: actions/setup-java@v4
         with:
-          repository: "RSDKModding/RSDKv5-Example-Mods"
-          path: "RSDKv5-Example-Mods"
+          distribution: 'zulu'
+          java-version: '17'
 
-      - name: Checkout GameAPI
-        uses: actions/checkout@v4
-        with:
-          repository: "RSDKModding/RSDKv5-GameAPI"
-          path: "RSDKv5-GameAPI"
+      - name: Configure Android SDK & Native NDK
+        uses: android-actions/setup-android@v3
 
-      - name: Setup RSDKv5 dependencies
+      - name: Fetch Media Libraries (Ogg & Theora)
         run: |
-          mkdir -p dependencies/android
-          cd dependencies/android
+          mkdir -p dependencies/android/app/jni/dependencies
+          cd dependencies/android/app/jni/dependencies
           
-          # Download official tar source trees directly to avoid zip pathing conflicts
+          # Fetch using your updated high-version official archive trees
           curl -L https://xiph.org -o ogg.tar.gz
           curl -L https://xiph.org -o theora.tar.gz
           
-          # Extract tarball structures smoothly
+          # Extract tarball distributions safely without wildcard dropouts
           tar -xzf ogg.tar.gz
           tar -xzf theora.tar.gz
           rm -f *.tar.gz
           
-          # Force clean folder setups for Gradle
-          mv libogg-1.3.5 libogg
-          mv libtheora-1.1.1 libtheora
+          # Map directories cleanly to match target naming conventions
+          mv libogg-1.3.6 libogg
+          mv libtheora-1.2.0 libtheora
 
-      - name: Setup RSDKv5 & mods symlinks
+      - name: Grant Shell Permissions to Gradle Wrapper
+        run: chmod +x dependencies/android/gradlew
+
+      - name: Execute Android Compiler Pipeline (v5U)
+        working-directory: ./dependencies/android
         run: |
-          rm -f Game
-          rm -rf $PWD/Sonic-Mania-Decompilation/dependencies/RSDKv5
-          mkdir -p $PWD/Sonic-Mania-Decompilation/dependencies
-          ln -sf $PWD $PWD/Sonic-Mania-Decompilation/dependencies/RSDKv5
-          mkdir -p RSDKv5-Example-Mods/ManiaTouchControls RSDKv5-Example-Mods/UltrawideMania ./android/app/jni
-          ln -sf $PWD/RSDKv5-GameAPI RSDKv5-Example-Mods/ManiaTouchControls/GameAPI
-          ln -sf $PWD/RSDKv5-GameAPI RSDKv5-Example-Mods/UltrawideMania/GameAPI
-          ln -sf $PWD/Sonic-Mania-Decompilation ./android/app/jni/Game
-          ln -sf $PWD/RSDKv5-Example-Mods/ManiaTouchControls ./android/app/jni/MTC
-          ln -sf $PWD/RSDKv5-Example-Mods/UltrawideMania ./android/app/jni/UWM
+          ./gradlew assembleRelease --no-daemon -PABIFILTERS="armeabi-v7a;arm64-v8a" -PRETRO_REVISION=3
+          mkdir -p ../../final_apk
+          cp app/build/outputs/apk/release/*.apk ../../final_apk/Sonic_Mania_v5U_Android.apk || cp app/build/outputs/apk/*/release/*.apk ../../final_apk/Sonic_Mania_v5U_Android.apk || true
 
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
-        with:
-          java-version: '21'
-          distribution: 'temurin'
-
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Grant Execute Permission to Gradle
-        run: chmod +x ./android/gradlew
-
-      - name: Build Mania+RSDKv5 Android
-        working-directory: ./android
-        run: |
-          ./gradlew assembleRelease --no-daemon -PABIFILTERS="armeabi-v7a;arm64-v8a" -PRETRO_DISABLE_PLUS=OFF -PRETRO_REVISION=3 || ./gradlew assemble --no-daemon -PABIFILTERS="armeabi-v7a;arm64-v8a" -PRETRO_DISABLE_PLUS=OFF -PRETRO_REVISION=3
-          cp app/build/outputs/apk/*/release/*.apk ../rsdkv5u_mania.apk || cp app/build/outputs/apk/release/*.apk ../rsdkv5u_mania.apk || true
-          ./gradlew clean
-          ./gradlew assembleRelease --no-daemon -PABIFILTERS="armeabi-v7a;arm64-v8a" -PRETRO_DISABLE_PLUS=OFF -PRETRO_REVISION=2 || ./gradlew assemble --no-daemon -PABIFILTERS="armeabi-v7a;arm64-v8a" -PRETRO_DISABLE_PLUS=OFF -PRETRO_REVISION=2
-          cp app/build/outputs/apk/*/release/*.apk ../rsdkv5_mania.apk || cp app/build/outputs/apk/release/*.apk ../rsdkv5_mania.apk || true
-
-      - name: Bundle APK & mods
-        run: |
-          mkdir -p artifacts/mods
-          cp *.apk artifacts/ || true
-          mkdir -p artifacts/mods/MTC
-          cp -r android/app/jni/MTC/build/* artifacts/mods/MTC/ || true
-          mkdir -p artifacts/mods/UWM
-          cp -r android/app/jni/UWM/build/* artifacts/mods/UWM/ || true
-          mkdir -p artifacts/mods/GLShaders/Data/Shaders
-          cp -r RSDKv5/Shaders/OGL/* artifacts/mods/GLShaders/Data/Shaders/ || cp -r Shaders/OGL/* artifacts/mods/GLShaders/Data/Shaders/ || true
-          printf "Name=GLShaders\nDescription=OGLShaders\nAuthor=Ducky\nVersion=1.0.0\nTargetVersion=-1\n" > artifacts/mods/GLShaders/mod.ini
-          printf "[Mods]\nMTC=y\nUWM=y\nGLShaders=y\n" > artifacts/mods/modconfig.ini
-
-      - name: Cleanup
-        run: rm -f $PWD/Sonic-Mania-Decompilation/dependencies/RSDKv5
-
-      - name: Upload artifact Android
+      - name: Upload Android APK
         uses: actions/upload-artifact@v4
         with:
-          name: v5-android
-          path: artifacts
+          name: mania-android-apk
+          path: final_apk
