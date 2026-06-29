@@ -74,24 +74,9 @@ jobs:
         run: |
           mkdir -p dependencies/android/app/jni
           cp -r SonicMania-Custom/* dependencies/android/app/jni/Game || true
-
-      - name: Fetch Media Libraries (Ogg & Theora)
-        run: |
-          mkdir -p dependencies/android/app/jni/dependencies
-          cd dependencies/android/app/jni/dependencies
-          
-          curl -L https://github.com -o ogg.tar.gz
-          curl -L https://github.com -o theora.tar.gz
-          
-          tar -xzf ogg.tar.gz
-          tar -xzf theora.tar.gz
-          rm -f *.tar.gz
-          
-          mv ogg-1.3.5 libogg
-          mv theora-1.1.1 libtheora
-
-      - name: Grant Shell Permissions to Gradle Wrapper
-        run: chmod +x dependencies/android/gradlew
+        
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
 
       - name: Execute Android Compiler Pipeline (v5U)
         working-directory: ./dependencies/android
