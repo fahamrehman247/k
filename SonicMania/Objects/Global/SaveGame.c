@@ -429,6 +429,36 @@ void SaveGame_LoadFile_CB(int32 status)
     }
 #endif
 
+    if (success) {
+        // Loop through all 8 save slots to process loading values
+        for (int32 s = 0; s < 8; ++s) {
+#if MANIA_USE_PLUS
+            SaveRAM *saveBuffer = (SaveRAM *)SaveGame_GetDataPtr(s, false);
+#else
+            SaveRAM *saveBuffer = (SaveRAM *)SaveGame_GetDataPtr(s);
+#endif
+
+            // --- CUSTOM MOD LOGIC: COMMENTED OUT FAILSAFES ---
+
+            // Commented out to prevent the engine from wiping TMZ Act 2 status back to Act 1 on load
+            if (saveBuffer->zoneID == ZONE_TMZ && saveBuffer->actID == 1) {
+                // saveBuffer->actID = 0; 
+            }
+
+            // Commented out to prevent rolling back Egg Reverie slots back to Titanic Monarch
+            if (saveBuffer->zoneID == ZONE_ERZ) {
+                // saveBuffer->zoneID = ZONE_TMZ;
+                // saveBuffer->actID  = 0;
+            }
+        }
+    }
+
+    // Call the original engine callback to let the game continue booting
+    if (SaveGame->loadCallback)
+        SaveGame->loadCallback(success);
+}
+
+
     if (SaveGame->loadCallback) {
         Entity *store = SceneInfo->entity;
         if (SaveGame->loadEntityPtr)
