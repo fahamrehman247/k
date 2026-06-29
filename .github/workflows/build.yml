@@ -11,16 +11,13 @@ on:
       - master
 
 env:
-  GENERAL_FLAGS: "-DWITH_RSDK=ON -DCMAKE_BUILD_TYPE=Release"
   V5U_FLAGS: "-DRETRO_REVISION=3 -DRETRO_DISABLE_PLUS=OFF"
-  WIN64_FLAGS: "-DVCPKG_TARGET_TRIPLET=x64-windows-static"
 
 jobs:
   # ----------------------------------------------------
   # JOB: Windows 64-bit Engine & Game DLL Compilation
   # ----------------------------------------------------
   build-pc-x64:
-    # FIXED: Replaced unstable windows-latest with stable windows-2022 image
     runs-on: windows-2022
     steps:
       - name: Checkout Source Code
@@ -28,11 +25,23 @@ jobs:
         with:
           submodules: recursive
 
-      # FIXED: Uses the reliable native $env:VCPKG_INSTALLATION_PATH provided by windows-2022
+      # 1. Installs the remaining system requirements but skips ogg/theora
+      - name: Install Base Graphics & Audio Layers via Vcpkg
+        run: |
+          vcpkg install glew glfw3 sdl2 --triplet=x64-windows-static
+
+      # 2. FIXED: Links directly to your exact folder paths and hooks to the vcpkg engine core
       - name: Compile Windows Binaries
         shell: pwsh
         run: |
-          cmake -B build_v5U ${{env.GENERAL_FLAGS}} -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_PATH/scripts/buildsystems/vcpkg.cmake" ${{env.WIN64_FLAGS}} ${{env.V5U_FLAGS}}
+          cmake -B build_v5U `
+            -DWITH_RSDK=ON `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_PATH/scripts/buildsystems/vcpkg.cmake" `
+            -DVCPKG_TARGET_TRIPLET=x64-windows-static `
+            -DOGG_INCLUDE_DIR="dependencies/RSDKv5/android/libogg/include" `
+            -DTHEORA_INCLUDE_DIR="dependencies/RSDKv5/android/libtheora/include" `
+            ${{env.V5U_FLAGS}}
           cmake --build build_v5U --parallel --config Release
 
       - name: Gather Flat Root Outputs
