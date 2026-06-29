@@ -1,4 +1,4 @@
-name: Build Sonic Mania (PC & Mobile)
+name: Build Sonic Mania (PC)
 
 on:
   push:
@@ -17,20 +17,22 @@ env:
 
 jobs:
   # ----------------------------------------------------
-  # JOB 1: Windows 64-bit Engine & Game DLL Compilation
+  # JOB: Windows 64-bit Engine & Game DLL Compilation
   # ----------------------------------------------------
   build-pc-x64:
-    runs-on: windows-latest
+    # FIXED: Replaced unstable windows-latest with stable windows-2022 image
+    runs-on: windows-2022
     steps:
       - name: Checkout Source Code
         uses: actions/checkout@v4
         with:
           submodules: recursive
 
+      # FIXED: Uses the reliable native $env:VCPKG_INSTALLATION_PATH provided by windows-2022
       - name: Compile Windows Binaries
         shell: pwsh
         run: |
-          cmake -B build_v5U ${{env.GENERAL_FLAGS}} -DCMAKE_TOOLCHAIN_FILE="C:/vckpg/scripts/buildsystems/vcpkg.cmake" ${{env.WIN64_FLAGS}} ${{env.V5U_FLAGS}}
+          cmake -B build_v5U ${{env.GENERAL_FLAGS}} -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_PATH/scripts/buildsystems/vcpkg.cmake" ${{env.WIN64_FLAGS}} ${{env.V5U_FLAGS}}
           cmake --build build_v5U --parallel --config Release
 
       - name: Gather Flat Root Outputs
@@ -44,4 +46,3 @@ jobs:
         with:
           name: mania-windows-x64
           path: artifacts
-
