@@ -1,4 +1,4 @@
-name: Build Sonic Mania (PC Custom Engine)
+name: Build Sonic Mania (PC)
 
 on:
   push:
@@ -25,12 +25,17 @@ jobs:
         with:
           submodules: recursive
 
-      # 1. Installs core display utilities while bypassing media manager blockers
+      # FIXED: Overrides the environment and forces the runner to deploy CMake 3.31.12
+      - name: Setup Specific CMake Version
+        uses: jwlawson/actions-setup-cmake@v2
+        with:
+          cmake-version: '3.31.12'
+
       - name: Install Base Graphics & Audio Layers via Vcpkg
         run: |
           vcpkg install glew glfw3 sdl2 --triplet=x64-windows-static
 
-      # 2. FIXED: Links directly to your exact folder paths and hooks your actclear/savegame updates
+      # FIXED: Executes cleanly on CMake 3.31.12 using your manual ogg/theora locations
       - name: Compile Windows Binaries
         shell: pwsh
         run: |
