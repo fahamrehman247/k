@@ -28,10 +28,8 @@ jobs:
           submodules: recursive
 
       - name: Compile Windows Binaries
-        shell: pwsh
         run: |
-          $TOOLCHAIN = "$env:VCPKG_INSTALLATION_PATH/scripts/buildsystems/vcpkg.cmake"
-          cmake -B build_v5U ${{env.GENERAL_FLAGS}} -DCMAKE_TOOLCHAIN_FILE="$TOOLCHAIN" ${{env.WIN64_FLAGS}} ${{env.V5U_FLAGS}}
+          cmake -B build_v5U ${{env.GENERAL_FLAGS}} -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_PATH/scripts/buildsystems/vcpkg.cmake" ${{env.WIN64_FLAGS}} ${{env.V5U_FLAGS}}
           cmake --build build_v5U --parallel --config Release
 
       - name: Gather Flat Root Outputs
@@ -57,11 +55,11 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Inject Custom Game Files From Your Repository
+      - name: Fetch Your Custom Game Files
         uses: actions/checkout@v4
         with:
           repository: "fahamrehman247/Sonic-Mania-Decompilation"
-          path: "dependencies/android/app/jni/Game"
+          path: "SonicMania-Custom"
 
       - name: Set Up Java Environment (JDK 17)
         uses: actions/setup-java@v4
@@ -72,12 +70,16 @@ jobs:
       - name: Configure Android SDK & Native NDK
         uses: android-actions/setup-android@v3
 
+      - name: Inject Custom Files into JNI Directory
+        run: |
+          mkdir -p dependencies/android/app/jni
+          cp -r SonicMania-Custom/* dependencies/android/app/jni/Game || true
+
       - name: Fetch Media Libraries (Ogg & Theora)
         run: |
           mkdir -p dependencies/android/app/jni/dependencies
           cd dependencies/android/app/jni/dependencies
           
-          # Pull dependencies using uniform GitHub tags to fix exit code 2
           curl -L https://github.com -o ogg.tar.gz
           curl -L https://github.com -o theora.tar.gz
           
