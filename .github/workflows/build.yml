@@ -1,4 +1,68 @@
-      # FIXED: Updated directory to point exactly to RSDKv5/android
+name: Build Sonic Mania (PC & Mobile)
+
+on:
+  push:
+    paths:
+      - dependencies/**
+      - SonicMania/**
+      - .github/workflows/build.yml
+      - CMakeLists.txt
+    branches:
+      - master
+
+env:
+  GENERAL_FLAGS: "-DWITH_RSDK=ON -DCMAKE_BUILD_TYPE=Release"
+  V5U_FLAGS: "-DRETRO_REVISION=3 -DRETRO_DISABLE_PLUS=OFF"
+  WIN64_FLAGS: "-DVCPKG_TARGET_TRIPLET=x64-windows-static"
+
+jobs:
+  # ----------------------------------------------------
+  # JOB 1: Windows 64-bit Engine & Game DLL Compilation
+  # ----------------------------------------------------
+  build-pc-x64:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Compile Windows Binaries
+        shell: pwsh
+        run: |
+          cmake -B build_v5U ${{env.GENERAL_FLAGS}} -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_PATH/scripts/buildsystems/vcpkg.cmake" ${{env.WIN64_FLAGS}} ${{env.V5U_FLAGS}}
+          cmake --build build_v5U --parallel --config Release
+
+      - name: Gather Flat Root Outputs
+        run: |
+          New-Item -ItemType Directory -Force -Path artifacts
+          Copy-Item ./build_v5U/Release/*.dll artifacts/
+          Copy-Item ./build_v5U/Release/*.exe artifacts/
+
+      - name: Upload Windows Bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: mania-windows-x64
+          path: artifacts
+
+  # ----------------------------------------------------
+  # JOB 2: Native Android Engine & Game APK Compilation
+  # ----------------------------------------------------
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Root Engine Codebase
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Fetch Your Custom Game Files
+        uses: actions/checkout@v4
+        with:
+          repository: "fahamrehman247/Sonic-Mania-Decompilation"
+          path: "SonicMania-Custom"
+
+      # FIXED: Added correct directory path to solve the permission crash
       - name: Make gradlew executable
         working-directory: ./dependencies/RSDKv5/android
         run: chmod +x ./gradlew
@@ -12,15 +76,22 @@
       - name: Configure Android SDK & Native NDK
         uses: android-actions/setup-android@v3
 
+      # FIXED: Patched path structure to align with the RSDKv5 subdirectory layout
       - name: Inject Custom Files into JNI Directory
         run: |
           mkdir -p dependencies/RSDKv5/android/app/jni
           cp -r SonicMania-Custom/* dependencies/RSDKv5/android/app/jni/Game || true
 
-      # FIXED: Updated build directory and relative apk copy paths
+      # FIXED: working-directory, relative extraction path, and Plus config explicitly OFF
       - name: Execute Android Compiler Pipeline (v5U)
         working-directory: ./dependencies/RSDKv5/android
         run: |
           ./gradlew assembleRelease --no-daemon -PABIFILTERS="armeabi-v7a;arm64-v8a" -PRETRO_REVISION=3 -PRETRO_DISABLE_PLUS=OFF
-          mkdir -p ../../../../final_apk
-          cp app/build/outputs/apk/release/*.apk ../../../../final_apk/Sonic_Mania_v5U_Android.apk || cp app/build/outputs/apk/*/release/*.apk ../../../../final_apk/Sonic_Mania_v5U_Android.apk || true
+          mkdir -p ../../../final_apk
+          cp app/build/outputs/apk/release/*.apk ../../../final_apk/Sonic_Mania_v5U_Android.apk || cp app/build/outputs/apk/*/release/*.apk ../../../final_apk/Sonic_Mania_v5U_Android.apk || true
+
+      - name: Upload Android APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: mania-android-apk
+          path: final_apk
