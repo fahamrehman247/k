@@ -722,11 +722,11 @@ void ActClear_State_SaveGameProgress(void)
     RSDK_THIS(ActClear);
 
     // 1. Handle our custom TMZ Act 2 -> Egg Reverie Zone (ERZ) Save Check
-    if (Globals->zoneID == ZONE_TMZ && Globals->actID == 1) {
+    if (globals->zoneID == ZONE_TMZ && globals->actID == 1) {
         if (SaveGame_GetEmeraldCount() >= 7) { 
             if (self->timer == 0) {
-                Globals->zoneID = ZONE_ERZ; 
-                Globals->actID  = 0; 
+                globals->zoneID = ZONE_ERZ; 
+                globals->actID  = 0; 
                 SaveGame_SaveProgress(); 
                 self->timer = 1; // Flag the frame write buffer delay
                 return;
@@ -739,9 +739,9 @@ void ActClear_State_SaveGameProgress(void)
     }
 
     // 2. Handle our custom Act 1 -> Act 2 Save Check (All regular zones)
-    if (Globals->actID == 0) {
+    if (globals->actID == 0) {
         if (self->timer == 0) {
-            Globals->actID = 1;         
+            globals->actID = 1;         
             SaveGame_SaveProgress(); 
             self->timer = 1; // Flag the frame write buffer delay
             return;

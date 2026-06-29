@@ -397,15 +397,10 @@ void SaveGame_ResetPlayerState(void)
     globals->restartSeconds      = 0;
     globals->restartMinutes      = 0;
     globals->restartRings        = 0;
-    globals->restart1UP          = 0;
+    globals->restart1UP          = 100; // Original default for extra life target tracking
     globals->restartPowerups     = 0;
-
-    if (Player) {
-        Player->rings         = globals->restartRings;
-        Player->ringExtraLife = globals->restart1UP;
-        Player->powerups      = globals->restartPowerups;
-    }
 }
+
 void SaveGame_LoadFile_CB(int32 status)
 {
     bool32 success = false;
@@ -457,8 +452,6 @@ void SaveGame_LoadFile_CB(int32 status)
     if (SaveGame->loadCallback)
         SaveGame->loadCallback(success);
 }
-
-
     if (SaveGame->loadCallback) {
         Entity *store = SceneInfo->entity;
         if (SaveGame->loadEntityPtr)
